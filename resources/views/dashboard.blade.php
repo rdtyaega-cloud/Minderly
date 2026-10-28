@@ -15,34 +15,9 @@
     @endphp
 
     <div class="min-h-screen lg:flex">
-        <aside class="hidden w-64 shrink-0 flex-col bg-[#123D75] text-white lg:flex">
-            <a href="{{ url('/dashboard') }}" class="flex items-center gap-3 border-b border-white/10 px-6 py-7">
-                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg text-blue-200">
-                    <i class="fas fa-check-double"></i>
-                </span>
-                <span class="text-xl font-bold tracking-wide">Minderly</span>
-            </a>
-
-            <nav class="flex-1 space-y-2 px-4 py-7" aria-label="Navigasi utama">
-                <a href="{{ url('/dashboard') }}" aria-current="page" class="flex items-center gap-3 rounded-xl bg-white px-4 py-3 font-semibold text-[#123D75] shadow-sm">
-                    <i class="fas fa-chart-pie w-5 text-center"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ url('/tugas') }}" class="flex items-center gap-3 rounded-xl px-4 py-3 text-blue-100 transition hover:bg-white/10 hover:text-white">
-                    <i class="fas fa-list-check w-5 text-center"></i>
-                    <span>Tugas Saya</span>
-                </a>
-            </nav>
-
-            <div class="m-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p class="text-sm font-semibold">Tetap fokus, selangkah demi selangkah.</p>
-                <p class="mt-1 text-xs leading-5 text-blue-200">Atur prioritas dan selesaikan tugasmu hari ini.</p>
-                <a href="{{ url('/tugas/tambah') }}" class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white hover:text-blue-200">
-                    <i class="fas fa-plus"></i>
-                    Buat tugas
-                </a>
-            </div>
-        </aside>
+        <div class="hidden lg:flex">
+            @include('layouts.partials.sidebar')
+        </div>
 
         <main class="min-w-0 flex-1">
             <header class="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-10">
