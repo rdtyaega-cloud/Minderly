@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tugas;
 use App\Models\Kategori;
 use App\Services\PrioritasService;
+use App\Services\AktivitasService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -13,18 +14,20 @@ class TugasController extends Controller
     public function index(Request $request)
     {
         // Statistik seluruh tugas, tidak terpengaruh pencarian atau filter.
-        $totalTugas = Tugas::count();
+            $idPengguna = auth()->id();
+            $totalTugas = Tugas::where('id_pengguna', $idPengguna)->count();
 
-        $tugasAktif = Tugas::whereIn('status', [
+            $tugasAktif = Tugas::where('id_pengguna', $idPengguna)->whereIn('status', [
             'Belum Mulai',
             'Sedang Dikerjakan',
         ])->count();
 
-        $tugasSelesai = Tugas::where('status', 'Selesai')->count();
+        $tugasSelesai = Tugas::where('id_pengguna', $idPengguna)->where('status', 'Selesai')->count();
 
         // Prioritas tinggi: skor >= 80 atau deadline terlewat,
         // selama tugas belum selesai.
-        $prioritasTinggi = Tugas::where('status', '!=', 'Selesai')
+        $prioritasTinggi = Tugas::where('id_pengguna', $idPengguna)
+            ->where('status', '!=', 'Selesai')
             ->where(function ($q) {
                 $q->where('skor_prioritas', '>=', 80)
                     ->orWhere(function ($sub) {
@@ -35,7 +38,7 @@ class TugasController extends Controller
             ->count();
 
         // Query daftar tugas.
-        $query = Tugas::query();
+        $query = Tugas::query()->where('id_pengguna', $idPengguna);
 
         
       
@@ -187,7 +190,7 @@ class TugasController extends Controller
         return view('tugas.tambah', compact('kategori'));
     }
 
-    public function store(Request $request, PrioritasService $prioritas)
+    public function store(Request $request, PrioritasService $prioritas, AktivitasService $aktivitas)
     {
         $request->validate([
             'judul' => 'required|string|max:150',
@@ -214,8 +217,8 @@ class TugasController extends Controller
             $request->dampak
         );
 
-        Tugas::create([
-            'id_pengguna' => 1,
+        $tugas = Tugas::create([
+            'id_pengguna' => auth()->id(),
             'id_kategori' => $request->id_kategori,
             'penanggung_jawab' => $penanggungJawab,
             'judul' => $request->judul,
@@ -227,13 +230,15 @@ class TugasController extends Controller
             'status' => 'Belum Mulai',
         ]);
 
+        $aktivitas->catat('Membuat tugas: ' . $tugas->judul, $tugas->id_pengguna);
+
         return redirect('/tugas')
             ->with('success', 'Tugas berhasil ditambahkan');
     }
 
     public function edit($id)
     {
-        $tugas = Tugas::findOrFail($id);
+        $tugas = Tugas::where('id_pengguna', auth()->id())->findOrFail($id);
         $kategori = Kategori::orderBy('nama_kategori')->get();
 
         return view('tugas.edit', compact('tugas', 'kategori'));
@@ -242,7 +247,8 @@ class TugasController extends Controller
     public function update(
         Request $request,
         $id,
-        PrioritasService $prioritas
+        PrioritasService $prioritas,
+        AktivitasService $aktivitas
     ) {
         $request->validate([
             'judul' => 'required|string|max:150',
@@ -255,7 +261,7 @@ class TugasController extends Controller
             'status' => 'required|in:Belum Mulai,Sedang Dikerjakan,Selesai',
         ]);
 
-        $tugas = Tugas::findOrFail($id);
+        $tugas = Tugas::where('id_pengguna', auth()->id())->findOrFail($id);
         $kategori = Kategori::findOrFail($request->id_kategori);
 
         // Penanggung jawab hanya disimpan untuk kategori Kelompok.
@@ -283,13 +289,17 @@ class TugasController extends Controller
             'status' => $request->status,
         ]);
 
+        $aktivitas->catat('Memperbarui tugas: ' . $tugas->judul, $tugas->id_pengguna);
+
         return redirect('/tugas')
             ->with('success', 'Tugas berhasil diperbarui');
     }
 
-    public function destroy($id)
+    public function destroy($id, AktivitasService $aktivitas)
     {
-        Tugas::findOrFail($id)->delete();
+        $tugas = Tugas::where('id_pengguna', auth()->id())->findOrFail($id);
+        $aktivitas->catat('Menghapus tugas: ' . $tugas->judul, $tugas->id_pengguna);
+        $tugas->delete();
 
         return redirect('/tugas')
             ->with('success', 'Tugas berhasil dihapus');

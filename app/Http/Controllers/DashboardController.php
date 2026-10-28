@@ -3,33 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tugas;
+use App\Services\NotifikasiService;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(NotifikasiService $notifikasiService)
     {
         $hariIni = today();
-        $batasNotifikasi = $hariIni->copy()->addDays(3);
+        $idPengguna = auth()->id();
 
-        $totalTugas = Tugas::count();
-        $dalamProses = Tugas::where('status', 'Sedang Dikerjakan')->count();
-        $selesai = Tugas::where('status', 'Selesai')->count();
-        $belumMulai = Tugas::where('status', 'Belum Mulai')->count();
-        $lewatTenggat = Tugas::where('status', '!=', 'Selesai')
+        $totalTugas = Tugas::where('id_pengguna', $idPengguna)->count();
+        $dalamProses = Tugas::where('id_pengguna', $idPengguna)->where('status', 'Sedang Dikerjakan')->count();
+        $selesai = Tugas::where('id_pengguna', $idPengguna)->where('status', 'Selesai')->count();
+        $belumMulai = Tugas::where('id_pengguna', $idPengguna)->where('status', 'Belum Mulai')->count();
+        $lewatTenggat = Tugas::where('id_pengguna', $idPengguna)
+            ->where('status', '!=', 'Selesai')
             ->whereNotNull('deadline')
             ->whereDate('deadline', '<', $hariIni)
             ->count();
 
-        $jumlahPrioritasTinggi = Tugas::whereNotNull('skor_prioritas')
+        $jumlahPrioritasTinggi = Tugas::where('id_pengguna', $idPengguna)->whereNotNull('skor_prioritas')
             ->where('skor_prioritas', '>=', 80)
             ->count();
-        $jumlahPrioritasSedang = Tugas::where('skor_prioritas', '>=', 50)
+        $jumlahPrioritasSedang = Tugas::where('id_pengguna', $idPengguna)->where('skor_prioritas', '>=', 50)
             ->where('skor_prioritas', '<', 80)
             ->count();
-        $jumlahPrioritasRendah = Tugas::whereNotNull('skor_prioritas')
+        $jumlahPrioritasRendah = Tugas::where('id_pengguna', $idPengguna)->whereNotNull('skor_prioritas')
             ->where('skor_prioritas', '<', 50)
             ->count();
-        $jumlahPrioritasBelumDihitung = Tugas::whereNull('skor_prioritas')->count();
+        $jumlahPrioritasBelumDihitung = Tugas::where('id_pengguna', $idPengguna)->whereNull('skor_prioritas')->count();
 
         $diagramStatus = [
             'labels' => ['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'],
@@ -45,7 +47,8 @@ class DashboardController extends Controller
             ],
         ];
 
-        $reminders = Tugas::where('status', '!=', 'Selesai')
+        $reminders = Tugas::where('id_pengguna', $idPengguna)
+            ->where('status', '!=', 'Selesai')
             ->whereNotNull('deadline')
             ->whereDate('deadline', '>=', $hariIni)
             ->whereDate('deadline', '<=', $hariIni->copy()->addDays(7))
@@ -54,37 +57,10 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $notifikasiQuery = Tugas::whereIn('status', [
-            'Belum Mulai',
-            'Sedang Dikerjakan',
-        ])->where(function ($query) use ($hariIni, $batasNotifikasi) {
-            $query->where(function ($deadlineQuery) use ($hariIni, $batasNotifikasi) {
-                $deadlineQuery->whereNotNull('deadline')
-                    ->whereDate('deadline', '<=', $batasNotifikasi);
-            })->orWhere('skor_prioritas', '>=', 80);
-        });
+        $jumlahNotifikasi = $notifikasiService->jumlah();
+        $notifikasi = $notifikasiService->terbaru();
 
-        $jumlahNotifikasi = (clone $notifikasiQuery)->count();
-        $notifikasi = $notifikasiQuery
-            ->orderByRaw(
-                'CASE
-                    WHEN deadline IS NOT NULL AND deadline < ? THEN 3
-                    WHEN deadline = ? THEN 2
-                    WHEN deadline IS NOT NULL AND deadline <= ? THEN 1
-                    ELSE 0
-                END DESC',
-                [
-                    $hariIni->toDateString(),
-                    $hariIni->toDateString(),
-                    $batasNotifikasi->toDateString(),
-                ]
-            )
-            ->orderByDesc('skor_prioritas')
-            ->orderBy('deadline')
-            ->limit(5)
-            ->get();
-
-        $tugasAktif = Tugas::whereIn('status', [
+        $tugasAktif = Tugas::where('id_pengguna', $idPengguna)->whereIn('status', [
             'Belum Mulai',
             'Sedang Dikerjakan',
         ])
@@ -93,7 +69,7 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        return view('dashboard', compact(
+        return view('dashboard.index', compact(
             'totalTugas',
             'belumMulai',
             'dalamProses',
